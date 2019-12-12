@@ -1,8 +1,15 @@
 #! /sbin/sh
-# A script to switch boot targets between Android and Sailfish OS.
-# https://git.io/fjSLY
 
-# >>> TWRP init >>>
+DEVICE="beryllium"
+ROOT="/data/.stowaways/sailfishos"
+BOOT_DIR="$ROOT/boot"
+DROID_BOOT="$BOOT_DIR/droid-boot.img"
+HYBRIS_BOOT="$BOOT_DIR/hybris-boot.img"
+TARGET_FILE="$BOOT_DIR/target_file"
+BOOTIMAGE="/dev/block/bootdevice/by-name/"
+
+#check if device is poco f1
+CURRENT_DEVICE="getprop ro.product.device"
 
 OUTFD="/proc/self/fd/$2" # e.g. "/proc/self/fd/28"
 
@@ -11,196 +18,114 @@ set_progress() { echo -e "set_progress $1\n" > $OUTFD; }
 
 # Print some text ($1) on the screen
 ui_print() { [ -z "$1" ] && echo -e "ui_print  \nui_print" > $OUTFD || echo -e "ui_print $@\nui_print" > $OUTFD; }
-
-# Log some text ($1) for script debugging
-log() { echo "boot-switcher: $@"; }
-
-# Remove package residue files from /tmp and unmount partitions
-cleanup() { log "Cleaning up..."; rm -rf $FILES/; }
-
-# Before quitting with an exit code ($1), show a message ($2)
 abort() { ui_print "E$1: $2"; cleanup; exit $1; }
 
-# <<< TWRP init <<<
 
-# >>> Custom functions >>>
+#check device 
+device_check(){
+    if [[ ! -z "$CURRENT_DEVICE" = "$DEVICE"  ]]; then
+        echo "$CURRENT_DEVICE is not $DEVICE"
+        abort 7 "This package is for '$DEVICE' devices; this is a '$CURRENT_DEVICE'."
+    fi
+}
 
-# Verify device boardname validity (e.g. not unset, no spaces / uppercase chars)
-invalid_device() { [[ -z "$CURRENT_DEVICE" || "$CURRENT_DEVICE" = *" "* || `echo "$CURRENT_DEVICE" | grep -q [A-Z]` ]]; }
+device_check
+echo "Device test successful" 
 
-# <<< Custom functions <<<
 
-# Constants & variables
-TARGET_DEVICES="cheeseburger dumpling"
-CURRENT_DEVICE=`getprop ro.omni.device`
-ROOT="/data/.stowaways/sailfishos"
+switch(){
 
-# >>> Sanity checks >>>
+    if [ -f $TARGET_FILE ]; then
+        backup_droid_boot
+        flash_hybris_boot
+        rm -f $TARGET_FILE
+    else
+        backup_hybris_boot
+        flash_droid_boot
+        touch $TARGET_FILE
+    fi
+}
 
-# Device
-invalid_device && CURRENT_DEVICE=`getprop ro.product.device`
-invalid_device && CURRENT_DEVICE=`getprop ro.build.product`
-echo $TARGET_DEVICES | grep -q $CURRENT_DEVICE || abort 7 "This package is for '$TARGET_DEVICES' devices; this is a '$CURRENT_DEVICE'."
+backup_droid_boot(){
 
-# Treble
-[ -r /dev/block/bootdevice/by-name/vendor ] || abort 1 "A vendor partition doesn't exist; you need to do an OTA from OxygenOS 5.1.5 to 5.1.6!"
+    echo "Making backup of android boot image"
+    dd if=/dev/block/bootdevice/by-name/boot of=$DROID_BOOT || abort 8 "backup of current boot image failed."
+            
+}
 
-# Sailfish OS
-(mount | grep -q /data || mount /data) || abort 2 "Couldn't mount /data; running e2fsck and rebooting may help."
-[ -f $ROOT/boot/droid-boot.img ] || abort 3 "Please install Android & Sailfish OS before flashing this zip."
-log "Sailfish OS installation detected (assuming Android as well)"
+backup_hybris_boot(){
+    
+    echo "Making backup of hybris boot image"
+    dd if=/dev/block/bootdevice/by-name/boot of=$HYBRIS_BOOT || abort 8 "backup of current boot image failed."
+            
+}
 
-# <<< Sanity checks <<<
+flash_droid_boot(){
 
-# >>> Script >>>
+    echo "Flashing droid boot image"
+    
+        ui_print "                  .od.        .do."
+        ui_print "                   'kOolllllloOk'"
+        ui_print "                 .cdl:'.    .':ldc."
+        ui_print "                ;xl''          ''lx;"
+        ui_print "               ;k:   ::      ::   :k;"
+        ui_print "              .xx..................xx."
+        ui_print "              .okddddddddddddddddddko."
+        ui_print "         .loo:,dxolllllllllllllllloxo,:ool."
+        ui_print "         ox.:kxkl                  lkxk:.xo"
+        ui_print "         dd.  xkc                  ckx  .dd"
+        ui_print "         od.  xkc                  ckx  .do"
+        ui_print "         od.  xkc                  ckx  .do"
+        ui_print "         od.  xkc                  ckx  .do"
+        ui_print "         ckc,kokc                  ckok,ckc"
+        ui_print "          ,c:.'kl                  lk'.:c,"
+        ui_print "               :dlcc.  .cccc.  .ccld:"
+        ui_print "                .'cOo  oOooOo  oOc'."
+        ui_print "                  .xo  ox,,xo  ox."
+        ui_print "                  .dx''xo..ox''xd."
+        ui_print "                   ,k00k,  ,k00k,"
+    
+    dd if=$DROID_BOOT of=/dev/block/bootdevice/by-name/boot || abort 5 "writing boot image failed."
+    
+}
 
-# Reset shown progress bar to 0%
-set_progress 0
+flash_hybris_boot(){
+    
+    echo "Flashing hybris boot image"
+    
+        ui_print "                          .':oOl."
+        ui_print "                       ':c::;ol."
+        ui_print "                    .:do,   ,l."
+        ui_print "                  .;k0l.   .ll.             .."
+        ui_print "                 'ldkc   .,cdoc:'.    ..,;:::;"
+        ui_print "                ,o,;o'.;::;'.  'coxxolc:;'."
+        ui_print "               'o, 'ddc,.    .;::::,."
+        ui_print "               cl   ,x:  .;:c:,."
+        ui_print "               ;l.   .:ldoc,."
+        ui_print "               .:c.    .:ll,"
+        ui_print "                 'c;.    .;l:"
+        ui_print "                   :xc.    ,o'"
+        ui_print "                   'xxc.   ;o."
+        ui_print "                   :l'c: ,lo,"
+        ui_print "                  ,o'.ooclc'"
+        ui_print "                .:l,,x0o;."
+        ui_print "              .;llcldl,"
+        ui_print "           .,oOOoc:'"
+        ui_print "       .,:lddo:'."
+        ui_print "      oxxo;."    
+    
+    dd if=$HYBRIS_BOOT of=/dev/block/bootdevice/by-name/boot || abort 5 "writing boot image failed."
+    
+}
 
-# Boot target to switch to
-TARGET="droid"
-TARGET_DROID_LOS=1
-TARGET_PRETTY=""
-TARGET_FILE="$ROOT/boot/droid_target"
+force_decrypt(){
+    
+    mount -o rw vendor
+    sed -i "s/forceencrypt/encryptable/g" /vendor/etc/fstab.qcom || abort 9 "could not disable force encryption";
+    umount vendor
+}
 
-if [ -f $TARGET_FILE ]; then # Sailfish OS
-	rm $TARGET_FILE
 
-	TARGET="hybris"
-	SFOS_REL=`cat $ROOT/etc/os-release | grep VERSION= | cut -d'=' -f2 | cut -d'"' -f2` # e.g. "3.2.0.12 (Torronsuo)"
-	TARGET_PRETTY="Sailfish OS $SFOS_REL" # e.g. "Sailfish OS 3.2.0.12 (Torronsuo)"
-else                         # Android
-	touch "$TARGET_FILE"
-
-	(mount | grep -q /system || mount /system) || abort 4 "Couldn't mount /system!"
-	DROID_VER=`cat /system/build.prop | grep ro.build.version.release | cut -d'=' -f2` # e.g. "9"
-	DROID_VER_MAJOR="$DROID_VER" # e.g. "9"
-	DROID_VER_MINOR="0"
-	if echo $DROID_VER | fgrep -q "."; then # e.g. "8.1.0"
-		DROID_VER_MAJOR=`echo $DROID_VER | cut -d'.' -f1` # e.g. "8"
-		DROID_VER_MINOR=`echo $DROID_VER | cut -d'.' -f2` # e.g. "1"
-	fi
-	DROID_REL="" # e.g. "Pie"
-
-	if [ "$DROID_VER_MAJOR" = "9" ]; then
-		DROID_REL="Pie"
-	elif [ "$DROID_VER_MAJOR" = "8" ]; then
-		DROID_REL="Oreo"
-	elif [ "$DROID_VER_MAJOR" = "7" ]; then
-		DROID_REL="Nougat"
-	elif [ "$DROID_VER_MAJOR" = "6" ]; then
-		DROID_REL="Marshmallow"
-	elif [ "$DROID_VER_MAJOR" = "5" ]; then
-		DROID_REL="Lollipop"
-	elif [ "$DROID_VER_MAJOR" = "4" ]; then
-		if [ "$DROID_VER_MINOR" = "4" ]; then
-			DROID_REL="KitKat"
-		elif [ "$DROID_VER_MINOR" = "0" ]; then
-			DROID_REL="ICS"
-		else
-			DROID_REL="Jelly Bean"
-		fi
-	fi
-
-	[ ! -z $DROID_REL ] && DROID_REL=" ($DROID_REL)" # e.g. " (Pie)"
-	TARGET_PRETTY="Android $DROID_VER$DROID_REL" # e.g. "Android 7.1.1 (Nougat)"
-	LOS_VER=`cat /system/build.prop | grep lineage.build.version= | cut -d'=' -f2` # e.g. "16.0"
-	[ ! -z $LOS_VER ] && TARGET_PRETTY="LineageOS $LOS_VER$DROID_REL" || TARGET_DROID_LOS=0 # e.g. "LineageOS 16.0 (Pie)"
-	umount /system &
-fi
-
-# Calculate centering offset indent on left
-offset=`echo -n $TARGET_PRETTY | wc -m` # Character length of the version string
-offset=`expr 52 - 13 - $offset`         # Remove constant string chars from offset calculation
-offset=`expr $offset / 2`               # Get left offset char count instead of space on both sides
-
-# Build the left side indentation offset string
-for i in `seq 1 $offset`; do indent="${indent} "; done
-
-# Splash
-ui_print
-ui_print "-=============- Boot Target Switcher -=============-"
-ui_print
-if [ "$TARGET" = "hybris" ]; then
-	ui_print "                          .':oOl."
-	ui_print "                       ':c::;ol."
-	ui_print "                    .:do,   ,l."
-	ui_print "                  .;k0l.   .ll.             .."
-	ui_print "                 'ldkc   .,cdoc:'.    ..,;:::;"
-	ui_print "                ,o,;o'.;::;'.  'coxxolc:;'."
-	ui_print "               'o, 'ddc,.    .;::::,."
-	ui_print "               cl   ,x:  .;:c:,."
-	ui_print "               ;l.   .:ldoc,."
-	ui_print "               .:c.    .:ll,"
-	ui_print "                 'c;.    .;l:"
-	ui_print "                   :xc.    ,o'"
-	ui_print "                   'xxc.   ;o."
-	ui_print "                   :l'c: ,lo,"
-	ui_print "                  ,o'.ooclc'"
-	ui_print "                .:l,,x0o;."
-	ui_print "              .;llcldl,"
-	ui_print "           .,oOOoc:'"
-	ui_print "       .,:lddo:'."
-	ui_print "      oxxo;."
-else
-	if [ "$TARGET_DROID_LOS" = "1" ]; then
-		ui_print
-		ui_print
-		ui_print
-		ui_print
-		ui_print "                         __"
-		ui_print "                      :clllcc:"
-		ui_print "                   :okOOOOOOOOko:"
-		ui_print "                 :o0K:   __   :00o:"
-		ui_print "                :dK0l :lxxxxo: l0Kd:"
-		ui_print "        _       c0Ko :xNMMMMNx: oK0c       _"
-		ui_print "     lxOOOkoldxk0N0l c0WMMMMM0c l0N0kxdlokOOOxl"
-		ui_print "    oK0dodOXX0kddOXx: lOKXXKOl :xX0dxk0XXOdod0Ko"
-		ui_print "   :kXx   lK0l   cOKkl:      :lkKOc   c0Ko   xXk:"
-		ui_print "    l0Kkxx0Kd:    :dO0OkxddxkO0Od:    :dK0xxkK0l"
-		ui_print "     coxkkdl        :ldxkkkkxdl:        ldkkxoc"
-		ui_print
-		ui_print
-		ui_print
-		ui_print
-		ui_print
-	else
-		ui_print "                  .od.        .do."
-		ui_print "                   'kOolllllloOk'"
-		ui_print "                 .cdl:'.    .':ldc."
-		ui_print "                ;xl''          ''lx;"
-		ui_print "               ;k:   ::      ::   :k;"
-		ui_print "              .xx..................xx."
-		ui_print "              .okddddddddddddddddddko."
-		ui_print "         .loo:,dxolllllllllllllllloxo,:ool."
-		ui_print "         ox.:kxkl                  lkxk:.xo"
-		ui_print "         dd.  xkc                  ckx  .dd"
-		ui_print "         od.  xkc                  ckx  .do"
-		ui_print "         od.  xkc                  ckx  .do"
-		ui_print "         od.  xkc                  ckx  .do"
-		ui_print "         ckc,kokc                  ckok,ckc"
-		ui_print "          ,c:.'kl                  lk'.:c,"
-		ui_print "               :dlcc.  .cccc.  .ccld:"
-		ui_print "                .'cOo  oOooOo  oOc'."
-		ui_print "                  .xo  ox,,xo  ox."
-		ui_print "                  .dx''xo..ox''xd."
-		ui_print "                   ,k00k,  ,k00k,"
-	fi
-fi
-ui_print
-ui_print "${indent}Switching to $TARGET_PRETTY"
-ui_print "                   Please wait ..."
-log "New boot target: '$TARGET_PRETTY'"
-
-# Start
-log "Writing $TARGET-boot image..."
-dd if=$ROOT/boot/$TARGET-boot.img of=/dev/block/bootdevice/by-name/boot || abort 5 "Writing new boot image failed."
-
-# <<< Script <<<
-
-# Succeeded.
-log "Boot target updated successfully."
-ui_print "            All done, enjoy your new OS!"
-ui_print
-cleanup
+switch
+force_decrypt
 exit 0
