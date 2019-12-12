@@ -6,12 +6,13 @@ BOOT_DIR="$ROOT/boot"
 DROID_BOOT="$BOOT_DIR/droid-boot.img"
 HYBRIS_BOOT="$BOOT_DIR/hybris-boot.img"
 TARGET_FILE="$BOOT_DIR/target_file"
-BOOTIMAGE="/dev/block/bootdevice/by-name/"
+BOOTIMAGE="/dev/block/bootdevice/by-name/boot"
 
 #check if device is poco f1
 CURRENT_DEVICE="getprop ro.product.device"
 
 OUTFD="/proc/self/fd/$2" # e.g. "/proc/self/fd/28"
+ZIPFILE="$3"
 
 # Set progress bar percentage using a fraction ($1) in range 0.00 - 1.00
 set_progress() { echo -e "set_progress $1\n" > $OUTFD; }
@@ -29,6 +30,7 @@ device_check(){
     fi
 }
 
+ui_print "flashing $ZIPFILE"
 device_check
 echo "Device test successful" 
 
@@ -49,14 +51,14 @@ switch(){
 backup_droid_boot(){
 
     echo "Making backup of android boot image"
-    dd if=/dev/block/bootdevice/by-name/boot of=$DROID_BOOT || abort 8 "backup of current boot image failed."
+    dd if=$BOOTIMAGE of=$DROID_BOOT || abort 8 "backup of current boot image failed."
             
 }
 
 backup_hybris_boot(){
     
     echo "Making backup of hybris boot image"
-    dd if=/dev/block/bootdevice/by-name/boot of=$HYBRIS_BOOT || abort 8 "backup of current boot image failed."
+    dd if=$BOOTIMAGE of=$HYBRIS_BOOT || abort 8 "backup of current boot image failed."
             
 }
 
@@ -85,7 +87,7 @@ flash_droid_boot(){
         ui_print "                  .dx''xo..ox''xd."
         ui_print "                   ,k00k,  ,k00k,"
     
-    dd if=$DROID_BOOT of=/dev/block/bootdevice/by-name/boot || abort 5 "writing boot image failed."
+    dd if=$DROID_BOOT of=$BOOTIMAGE || abort 5 "writing boot image failed."
     
 }
 
@@ -114,7 +116,7 @@ flash_hybris_boot(){
         ui_print "       .,:lddo:'."
         ui_print "      oxxo;."    
     
-    dd if=$HYBRIS_BOOT of=/dev/block/bootdevice/by-name/boot || abort 5 "writing boot image failed."
+    dd if=$HYBRIS_BOOT of=$BOOTIMAGE || abort 5 "writing boot image failed."
     
 }
 
